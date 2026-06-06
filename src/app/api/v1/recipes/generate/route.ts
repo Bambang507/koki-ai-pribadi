@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-
 const RequestSchema = z.object({
   craving: z.string().min(3).max(150),
   availableIngredients: z.array(z.string()).optional(),
@@ -11,6 +9,17 @@ const RequestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY is not set in environment variables');
+      return NextResponse.json(
+        { error: 'Konfigurasi server belum lengkap (API Key tidak ditemukan). Pastikan Environment Variables sudah diatur di Vercel.' },
+        { status: 500 }
+      );
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     const body = await request.json();
     
     const parsed = RequestSchema.safeParse(body);
@@ -41,8 +50,10 @@ Return ONLY a valid JSON object with the following structure (in Indonesian lang
   ]
 }`;
 
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
     const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL as string,
+      model: modelName,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -71,10 +82,11 @@ Return ONLY a valid JSON object with the following structure (in Indonesian lang
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating plan:', error);
+    const errorMessage = error?.message || 'Internal Server Error';
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      { error: `Terjadi kesalahan saat memanggil AI: ${errorMessage}` },
       { status: 500 }
     );
   }
