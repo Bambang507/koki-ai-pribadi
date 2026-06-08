@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 const RequestSchema = z.object({
@@ -9,16 +8,14 @@ const RequestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      console.error('GEMINI_API_KEY is not set in environment variables');
+      console.error('GROQ_API_KEY is not set in environment variables');
       return NextResponse.json(
-        { error: 'Konfigurasi server belum lengkap (API Key tidak ditemukan). Pastikan Environment Variables sudah diatur di Vercel.' },
+        { error: 'Konfigurasi server belum lengkap (Groq API Key tidak ditemukan). Pastikan Environment Variables sudah diatur di Vercel.' },
         { status: 500 }
       );
     }
-
-    const ai = new GoogleGenAI({ apiKey });
 
     const body = await request.json();
     
@@ -50,30 +47,47 @@ Return ONLY a valid JSON object with the following structure (in Indonesian lang
   ]
 }`;
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const modelName = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      }
+    // Call Groq API via fetch (OpenAI compatible)
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+      }),
     });
+
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
+      console.error('Groq API Error:', errorText);
+      return NextResponse.json(
+        { error: `Terjadi kesalahan pada Groq API: ${groqResponse.statusText}` },
+        { status: groqResponse.status }
+      );
+    }
+
+    const groqData = await groqResponse.json();
+    const aiResponseText = groqData.choices?.[0]?.message?.content;
 
     let aiRecipe;
     try {
-      aiRecipe = JSON.parse(response.text || '{}');
+      aiRecipe = JSON.parse(aiResponseText || '{}');
     } catch {
-      console.error('Failed to parse Gemini response:', response.text);
+      console.error('Failed to parse Groq response:', aiResponseText);
       return NextResponse.json({ error: 'Gagal memproses respon dari AI' }, { status: 500 });
     }
-
-    // TODO: In a real app, retrieve the user from the authenticated session
-    // const session = await getServerSession(authOptions);
-    // if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    // For MVP demonstration, we just return the recipe without saving
-    // Once Auth is ready, we will use prisma.recipe.create(...)
 
     return NextResponse.json(
       { 
