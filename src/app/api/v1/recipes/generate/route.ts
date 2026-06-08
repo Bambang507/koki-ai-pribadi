@@ -96,9 +96,9 @@ Return ONLY a valid JSON object with the following structure (in Indonesian lang
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating plan:', error);
-    const errorMessage = error?.message || 'Internal Server Error';
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     return NextResponse.json(
       { error: `Terjadi kesalahan saat memanggil AI: ${errorMessage}` },
       { status: 500 }

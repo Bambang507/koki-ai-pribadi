@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Utensils, ChefHat, Loader2, RefreshCw, ArrowLeft, Flame, Clock, CheckCircle2 } from "lucide-react";
+import { Utensils, ChefHat, RefreshCw, ArrowLeft, Flame, Clock, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 
